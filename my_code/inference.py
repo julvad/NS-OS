@@ -148,44 +148,6 @@ def predict_pytorch(
         return dice, iou
     torch.cuda.empty_cache() 
     
-
-def predict_multiscale_ensemble(
-        ts_ps_tuples:List[tuple]=[(384,16),(512,20),(448,33)],
-        tiles_path_dict:dict={512:['path.tif','path2.tif']},
-        model_path_dict:dict = {
-            512:'models/512-20/UNetPlusPlus_efficientnet-b5_unfrz_bs10_lr1e-4_ce-loss/best_model_epoch26_iou0.793.pth',
-            384:'models/384-16/UNetPlusPlus_efficientnet-b3_unfrz_bs24_lr1e-4_ce-loss/best_model_epoch104_iou0.797.pth',
-            448:'models/448-33/UNetPlusPlus_efficientnet-b4_unfrz_bs16_lr1e-4_ce-loss/best_model_epoch22_iou0.802.pth'
-            },
-        predict_prob_or_class:Literal['probs','class']='probs',
-        out_preds_folder_path:str = r'c:\Users\juvad3723\.1\--Data\cruise_2026',
-        save_out_preds=True,
-        batch_size=8
-    ):
-    """
-    dict with keys=tile sizes.
-    """
-
-    for ts,ps in ts_ps_tuples:
-        model = smp.from_pretrained(model_path_dict[ts])
-
-        tiles_path_list = tiles_path_dict[ts]
-        transform = sar_transform(resize_size=ts,triple=TRIPLE)
-        out_pred_path = os.path.join(out_preds_folder_path, f'{ts}_{ps}')
-        
-        #Predict
-        predict_pytorch(
-            model=model,
-            tile_paths=tiles_path_list,
-            transform=transform,
-            predict_prob_or_class=predict_prob_or_class,
-            return_dice_iou=False,
-            save_out_preds=save_out_preds,
-            out_pred_path=out_pred_path,
-            batch_size=batch_size
-        )
-        del model
-        torch.cuda.empty_cache()
     
 
 def mosaic_with_rasterio(
@@ -374,7 +336,6 @@ def mosaic_rasterio_padding( #TODO: add soft mosaicking for probs predictions
 
 def raster_to_polygon(
     in_raster_path,
-    out_folder,
     min_area_m2,
     max_area_m2,
     out_format:Literal['shp','geojson']='shp',
@@ -383,8 +344,6 @@ def raster_to_polygon(
     ):
     """Converts a binary geotiff to a polygon shapefile 
     """
-    os.makedirs(out_folder,exist_ok=True)
-    datename = os.path.basename(in_raster_path).strip('.tif')
     if isinstance(class_values,int):
         class_values = [class_values]
 
@@ -448,27 +407,27 @@ def raster_to_polygon(
         # gdf.geometry = gdf.geometry.make_valid() # in all cases ensure valid geometries #NOTE: Experimental line, see if OK, or needed
 
         if len(unique_values) > 1:
-            out_name = f'{datename}_class{unique_value}.{out_format}'
+            out_name = f'{out_name}_class{unique_value}.{out_format}'
         else:
-            out_name = datename + '.' + out_format
+            out_name = out_name + '.' + out_format
 
-        out_path = os.path.join(out_folder,out_name)
-
-        gdf['date'] = datename
-
+        img_dir = os.path.dirname(in_raster_path)
+        out_path = os.path.join(img_dir, out_name)
 
         if len(gdf) == 0:
             print(f'Skipping vectorization of {out_path}. No detections.')
             continue
 
         if out_format == 'shp':
-            gdf.to_file(out_path, driver='ESRI Shapefile')
+            driver='ESRI Shapefile'
         elif out_format == 'geojson':
-            gdf.to_file(out_path, driver='GeoJSON')
+            driver='GeoJSON'
         else:
             raise ValueError(out_format)
         
-        print(f'{out_format} created at {out_path}')
+        gdf.to_file(out_path, driver=driver)
+        
+        print(f'{out_format} created at {out_path} for {in_raster_path}')
 
 
 def postprocess_gdf(
