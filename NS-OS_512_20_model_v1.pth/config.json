@@ -1,0 +1,13 @@
+{
+  "_model_class": "UPerNet",
+  "activation": null,
+  "aux_params": null,
+  "classes": 2,
+  "decoder_channels": 256,
+  "decoder_use_norm": "batchnorm",
+  "encoder_depth": 5,
+  "encoder_name": "mit_b3",
+  "encoder_weights": "imagenet",
+  "in_channels": 3,
+  "upsampling": 4
+}
