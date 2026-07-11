@@ -73,7 +73,7 @@ def inference_mosaic(
             return_dice_iou=False,
             save_out_preds=True,
             out_pred_path=preds_folder,
-            batch_size=8
+            batch_size=batch_size
         )
     
     if mosaic_tiles:
